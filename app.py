@@ -2,10 +2,6 @@ import streamlit as st
 import cv2
 import numpy as np
 
-# --------------------------------------------------
-# PAGE SETTINGS
-# --------------------------------------------------
-
 st.set_page_config(
     page_title="Ministry of Grass Affairs",
     page_icon="🌱",
@@ -59,11 +55,6 @@ h1, h2, h3 {
     border: 1px solid #4d7c4d !important;
 }
 
-[data-testid="stFileUploaderDropzone button:hover"] {
-    background-color: #d5ecd5 !important;
-    color: #14532d !important;
-}
-
 header[data-testid="stHeader"] {
     background-color: transparent !important;
 }
@@ -75,13 +66,16 @@ header[data-testid="stHeader"] {
 </style>
 """, unsafe_allow_html=True)
 
+
 # --------------------------------------------------
 # MINISTRY HEADER
 # --------------------------------------------------
 
 st.title("🏛️ MINISTRY OF GRASS AFFAIRS")
 
-st.subheader("Department of National Grass Administration")
+st.subheader(
+    "Department of National Grass Administration"
+)
 
 st.write(
     "Official Government Portal for the Registration, "
@@ -90,8 +84,9 @@ st.write(
 
 st.divider()
 
+
 # --------------------------------------------------
-# NATIONAL CENSUS
+# NATIONAL GRASS CENSUS
 # --------------------------------------------------
 
 st.header("🌱 National Grass Census")
@@ -105,8 +100,9 @@ st.info(
     "will be considered temporarily registered with the Ministry."
 )
 
+
 # --------------------------------------------------
-# IMAGE UPLOAD
+# CENSUS SUBMISSION
 # --------------------------------------------------
 
 st.subheader("📋 Census Submission")
@@ -122,9 +118,6 @@ st.caption(
     "of Grass Enumeration."
 )
 
-# --------------------------------------------------
-# IMAGE PROCESSING
-# --------------------------------------------------
 
 if uploaded_file:
 
@@ -146,9 +139,9 @@ if uploaded_file:
 
     else:
 
-        # ------------------------------------------
-        # ORIGINAL IMAGE
-        # ------------------------------------------
+        # --------------------------------------------------
+        # SUBMITTED IMAGE
+        # --------------------------------------------------
 
         st.subheader("📷 Submitted Lawn Photograph")
 
@@ -163,11 +156,14 @@ if uploaded_file:
             use_container_width=True
         )
 
-        # ------------------------------------------
-        # COMPUTER VISION
-        # ------------------------------------------
 
-        st.subheader("🔬 Department of Grass Enumeration")
+        # --------------------------------------------------
+        # GRASS DETECTION
+        # --------------------------------------------------
+
+        st.subheader(
+            "🔬 Department of Grass Enumeration"
+        )
 
         st.write(
             "The Department is analysing the photograph "
@@ -175,15 +171,9 @@ if uploaded_file:
             "and estimate the grass citizen population."
         )
 
-        # ------------------------------------------
-        # FOCUS ON LAWN AREA
-        # ------------------------------------------
-
         height, width = image.shape[:2]
 
-        # We analyse the lower 60% of the image,
-        # where the lawn is most likely to appear.
-
+        # Analyse lower 60% of photograph
         lawn_start = int(height * 0.40)
 
         lawn_area = image[
@@ -191,15 +181,13 @@ if uploaded_file:
             :
         ]
 
-        # ------------------------------------------
-        # HSV GREEN DETECTION
-        # ------------------------------------------
-
+        # Convert image to HSV
         hsv = cv2.cvtColor(
             lawn_area,
             cv2.COLOR_BGR2HSV
         )
 
+        # Green colour range
         lower_green = np.array([
             25,
             35,
@@ -212,16 +200,14 @@ if uploaded_file:
             255
         ])
 
+        # Create grass mask
         mask = cv2.inRange(
             hsv,
             lower_green,
             upper_green
         )
 
-        # ------------------------------------------
-        # CLEAN THE MASK
-        # ------------------------------------------
-
+        # Remove small noise
         kernel = np.ones(
             (5, 5),
             np.uint8
@@ -239,9 +225,10 @@ if uploaded_file:
             kernel
         )
 
-        # ------------------------------------------
+
+        # --------------------------------------------------
         # GRASS COVERAGE
-        # ------------------------------------------
+        # --------------------------------------------------
 
         grass_pixels = cv2.countNonZero(
             mask
@@ -265,28 +252,24 @@ if uploaded_file:
 
             grass_percentage = 0
 
-        # ------------------------------------------
-        # POPULATION ESTIMATION
-        # ------------------------------------------
 
-        # This is an estimation rather than an
-        # exact blade count.
+        # --------------------------------------------------
+        # POPULATION ESTIMATION
+        # --------------------------------------------------
 
         count = int(
             grass_percentage * 100
         )
-
-        # Keep the result within a reasonable
-        # demonstration range.
 
         count = max(
             1,
             min(count, 10000)
         )
 
-        # ------------------------------------------
+
+        # --------------------------------------------------
         # FULL IMAGE MASK
-        # ------------------------------------------
+        # --------------------------------------------------
 
         full_mask = np.zeros(
             (height, width),
@@ -298,23 +281,18 @@ if uploaded_file:
             :
         ] = mask
 
-        # ------------------------------------------
+
+        # --------------------------------------------------
         # VERIFICATION IMAGE
-        # ------------------------------------------
+        # --------------------------------------------------
 
         verification_image = image.copy()
-
-        # Create a green overlay
-        # for the detected grass area.
 
         green_overlay = image.copy()
 
         green_overlay[
             full_mask > 0
         ] = (0, 255, 0)
-
-        # Blend original image with
-        # green detected-area overlay.
 
         verification_image = cv2.addWeighted(
             image,
@@ -324,8 +302,10 @@ if uploaded_file:
             0
         )
 
-        # Draw boundaries around detected
-        # grass regions.
+
+        # --------------------------------------------------
+        # DRAW DETECTED REGIONS
+        # --------------------------------------------------
 
         contours, _ = cv2.findContours(
             full_mask,
@@ -349,14 +329,16 @@ if uploaded_file:
                     3
                 )
 
+
         verification_image_rgb = cv2.cvtColor(
             verification_image,
             cv2.COLOR_BGR2RGB
         )
 
-        # ------------------------------------------
-        # CENSUS RESULT
-        # ------------------------------------------
+
+        # --------------------------------------------------
+        # OFFICIAL CENSUS RESULT
+        # --------------------------------------------------
 
         st.divider()
 
@@ -379,18 +361,15 @@ if uploaded_file:
             "within the analysed lawn area."
         )
 
-        # ------------------------------------------
-        # GRASS COVERAGE
-        # ------------------------------------------
-
         st.metric(
             "🌿 Detected Grass Coverage",
             f"{grass_percentage:.1f}%"
         )
 
-        # ------------------------------------------
+
+        # --------------------------------------------------
         # VERIFICATION MAP
-        # ------------------------------------------
+        # --------------------------------------------------
 
         st.subheader(
             "🔬 Census Verification Map"
@@ -407,9 +386,10 @@ if uploaded_file:
             use_container_width=True
         )
 
-        # ------------------------------------------
-        # CITIZEN REGISTRY
-        # ------------------------------------------
+
+        # --------------------------------------------------
+        # GRASS CITIZEN REGISTRY
+        # --------------------------------------------------
 
         st.divider()
 
@@ -434,10 +414,8 @@ if uploaded_file:
                 citizen_id
             )
 
-        # ------------------------------------------
-        # REGISTRY TABLE
-        # ------------------------------------------
 
+        # Registry table
         table = (
             "| Citizen ID | Status | Department |\n"
         )
@@ -445,8 +423,6 @@ if uploaded_file:
         table += (
             "|---|---|---|\n"
         )
-
-        # Show first 100 citizens only.
 
         for citizen_id in grass_citizens[:100]:
 
@@ -458,6 +434,7 @@ if uploaded_file:
 
         st.markdown(table)
 
+
         if count > 100:
 
             st.caption(
@@ -465,9 +442,10 @@ if uploaded_file:
                 f"{count:,} registered citizens."
             )
 
-        # ------------------------------------------
-        # SEARCH FACILITY
-        # ------------------------------------------
+
+        # --------------------------------------------------
+        # GRASS CITIZEN SEARCH
+        # --------------------------------------------------
 
         st.divider()
 
@@ -475,25 +453,50 @@ if uploaded_file:
             "🔎 Grass Citizen Search"
         )
 
-        st.warning(
-            "🔒 SEARCH FACILITY CURRENTLY RESTRICTED"
-        )
-
         st.write(
-            "The Ministry has temporarily suspended access "
-            "to the Grass Citizen Search Database."
+            "Enter a Grass Citizen ID to access the "
+            "National Grass Citizen Database."
         )
 
-        st.text_input(
-            "Search Grass Citizen ID",
-            placeholder="e.g. GRASS-0001",
-            disabled=True
+
+        # Search box
+        search_id = st.text_input(
+            "Grass Citizen ID",
+            placeholder="e.g. GRASS-0001"
         )
 
-        st.caption(
-            "Reason: Citizen records are undergoing "
-            "unnecessary administrative verification."
+        search_button = st.button(
+            "🔎 Search Citizen"
         )
+
+
+        if search_button:
+
+            st.error(
+                "🔒 ACCESS DENIED"
+            )
+
+            st.warning(
+                "Grass citizens have privacy rights."
+            )
+
+            st.info(
+                "📋 Search privileges have been suspended "
+                "under Ministry administrative regulations."
+            )
+
+            st.caption(
+                "Reason: Unauthorized searching of grass "
+                "citizen records is currently prohibited."
+            )
+
+        else:
+
+            st.caption(
+                "⚠️ Official notice: Citizen search access "
+                "is subject to Ministry regulations."
+            )
+
 
 # --------------------------------------------------
 # FOOTER
