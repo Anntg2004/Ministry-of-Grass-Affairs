@@ -2,10 +2,9 @@ import streamlit as st
 import cv2
 import numpy as np
 
-
-# =========================================================
-# PAGE CONFIGURATION
-# =========================================================
+# --------------------------------------------------
+# PAGE SETTINGS
+# --------------------------------------------------
 
 st.set_page_config(
     page_title="Ministry of Grass Affairs",
@@ -13,10 +12,9 @@ st.set_page_config(
     layout="wide"
 )
 
-
-# =========================================================
+# --------------------------------------------------
 # GOVERNMENT STYLE
-# =========================================================
+# --------------------------------------------------
 
 st.markdown("""
 <style>
@@ -61,7 +59,7 @@ h1, h2, h3 {
     border: 1px solid #4d7c4d !important;
 }
 
-[data-testid="stFileUploaderDropzone"] button:hover {
+[data-testid="stFileUploaderDropzone button:hover"] {
     background-color: #d5ecd5 !important;
     color: #14532d !important;
 }
@@ -77,10 +75,9 @@ header[data-testid="stHeader"] {
 </style>
 """, unsafe_allow_html=True)
 
-
-# =========================================================
+# --------------------------------------------------
 # MINISTRY HEADER
-# =========================================================
+# --------------------------------------------------
 
 st.title("🏛️ MINISTRY OF GRASS AFFAIRS")
 
@@ -93,15 +90,14 @@ st.write(
 
 st.divider()
 
-
-# =========================================================
-# NATIONAL GRASS CENSUS
-# =========================================================
+# --------------------------------------------------
+# NATIONAL CENSUS
+# --------------------------------------------------
 
 st.header("🌱 National Grass Census")
 
 st.write(
-    "Submit a lawn image for official population enumeration."
+    "Submit a lawn image for official population estimation."
 )
 
 st.info(
@@ -109,10 +105,9 @@ st.info(
     "will be considered temporarily registered with the Ministry."
 )
 
-
-# =========================================================
+# --------------------------------------------------
 # IMAGE UPLOAD
-# =========================================================
+# --------------------------------------------------
 
 st.subheader("📋 Census Submission")
 
@@ -127,10 +122,9 @@ st.caption(
     "of Grass Enumeration."
 )
 
-
-# =========================================================
-# PROCESS IMAGE
-# =========================================================
+# --------------------------------------------------
+# IMAGE PROCESSING
+# --------------------------------------------------
 
 if uploaded_file:
 
@@ -152,9 +146,9 @@ if uploaded_file:
 
     else:
 
-        # =================================================
-        # SUBMITTED IMAGE
-        # =================================================
+        # ------------------------------------------
+        # ORIGINAL IMAGE
+        # ------------------------------------------
 
         st.subheader("📷 Submitted Lawn Photograph")
 
@@ -169,121 +163,253 @@ if uploaded_file:
             use_container_width=True
         )
 
-
-        # =================================================
-        # COMPUTER VISION PROCESSING
-        # =================================================
+        # ------------------------------------------
+        # COMPUTER VISION
+        # ------------------------------------------
 
         st.subheader("🔬 Department of Grass Enumeration")
 
         st.write(
             "The Department is analysing the photograph "
-            "to identify grass-like regions."
+            "to identify grass-like regions in the lawn "
+            "and estimate the grass citizen population."
         )
 
-        # Convert image to HSV
+        # ------------------------------------------
+        # FOCUS ON LAWN AREA
+        # ------------------------------------------
+
+        height, width = image.shape[:2]
+
+        # We analyse the lower 60% of the image,
+        # where the lawn is most likely to appear.
+
+        lawn_start = int(height * 0.40)
+
+        lawn_area = image[
+            lawn_start:height,
+            :
+        ]
+
+        # ------------------------------------------
+        # HSV GREEN DETECTION
+        # ------------------------------------------
+
         hsv = cv2.cvtColor(
-            image,
+            lawn_area,
             cv2.COLOR_BGR2HSV
         )
 
-        # Green colour range
-        lower_green = np.array(
-            [25, 40, 40]
-        )
+        lower_green = np.array([
+            25,
+            35,
+            30
+        ])
 
-        upper_green = np.array(
-            [95, 255, 255]
-        )
+        upper_green = np.array([
+            95,
+            255,
+            255
+        ])
 
-        # Create green mask
         mask = cv2.inRange(
             hsv,
             lower_green,
             upper_green
         )
 
-        # Find green regions
-        contours, _ = cv2.findContours(
+        # ------------------------------------------
+        # CLEAN THE MASK
+        # ------------------------------------------
+
+        kernel = np.ones(
+            (5, 5),
+            np.uint8
+        )
+
+        mask = cv2.morphologyEx(
             mask,
+            cv2.MORPH_OPEN,
+            kernel
+        )
+
+        mask = cv2.morphologyEx(
+            mask,
+            cv2.MORPH_CLOSE,
+            kernel
+        )
+
+        # ------------------------------------------
+        # GRASS COVERAGE
+        # ------------------------------------------
+
+        grass_pixels = cv2.countNonZero(
+            mask
+        )
+
+        lawn_pixels = (
+            lawn_area.shape[0]
+            *
+            lawn_area.shape[1]
+        )
+
+        if lawn_pixels > 0:
+
+            grass_percentage = (
+                grass_pixels
+                /
+                lawn_pixels
+            ) * 100
+
+        else:
+
+            grass_percentage = 0
+
+        # ------------------------------------------
+        # POPULATION ESTIMATION
+        # ------------------------------------------
+
+        # This is an estimation rather than an
+        # exact blade count.
+
+        count = int(
+            grass_percentage * 100
+        )
+
+        # Keep the result within a reasonable
+        # demonstration range.
+
+        count = max(
+            1,
+            min(count, 10000)
+        )
+
+        # ------------------------------------------
+        # FULL IMAGE MASK
+        # ------------------------------------------
+
+        full_mask = np.zeros(
+            (height, width),
+            dtype=np.uint8
+        )
+
+        full_mask[
+            lawn_start:height,
+            :
+        ] = mask
+
+        # ------------------------------------------
+        # VERIFICATION IMAGE
+        # ------------------------------------------
+
+        verification_image = image.copy()
+
+        # Create a green overlay
+        # for the detected grass area.
+
+        green_overlay = image.copy()
+
+        green_overlay[
+            full_mask > 0
+        ] = (0, 255, 0)
+
+        # Blend original image with
+        # green detected-area overlay.
+
+        verification_image = cv2.addWeighted(
+            image,
+            0.65,
+            green_overlay,
+            0.35,
+            0
+        )
+
+        # Draw boundaries around detected
+        # grass regions.
+
+        contours, _ = cv2.findContours(
+            full_mask,
             cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE
         )
 
-        # Keep meaningful regions
-        grass_regions = []
-
         for contour in contours:
 
-            area = cv2.contourArea(contour)
+            area = cv2.contourArea(
+                contour
+            )
 
-            if area > 50:
+            if area > 80:
 
-                grass_regions.append(contour)
+                cv2.drawContours(
+                    verification_image,
+                    [contour],
+                    -1,
+                    (0, 255, 0),
+                    3
+                )
 
-        # Estimated grass population
-        count = len(grass_regions)
-        # =================================================
-# CREATE CENSUS VERIFICATION IMAGE
-# =================================================
+        verification_image_rgb = cv2.cvtColor(
+            verification_image,
+            cv2.COLOR_BGR2RGB
+        )
 
-verification_image = image.copy()
-
-for contour in grass_regions:
-    cv2.drawContours(
-        verification_image,
-        [contour],
-        -1,
-        (0, 255, 0),
-        2
-    )
-
-verification_image_rgb = cv2.cvtColor(
-    verification_image,
-    cv2.COLOR_BGR2RGB
-)
-
-
-        # =================================================
-        # CREATE GRASS CITIZEN IDs
-        # =================================================
-
-        grass_citizens = []
-
-        for i in range(count):
-
-            citizen_id = f"GRASS-{i + 1:04d}"
-
-            grass_citizens.append(citizen_id)
-
-
-        # =================================================
-        # OFFICIAL CENSUS RESULT
-        # =================================================
+        # ------------------------------------------
+        # CENSUS RESULT
+        # ------------------------------------------
 
         st.divider()
 
-        st.subheader("📊 Official Census Result")
+        st.subheader(
+            "📊 Official Census Result"
+        )
 
         st.success(
             "✅ Grass Census successfully completed."
         )
 
         st.metric(
-            "🌱 Estimated Grass Population",
-            count
+            "🌱 Estimated Grass Citizen Population",
+            f"{count:,}"
         )
 
         st.caption(
-            "Population figure represents AI-assisted "
-            "detection of grass-like regions in the "
-            "submitted photograph."
+            "Population figure represents an AI-assisted "
+            "estimation based on detected grass coverage "
+            "within the analysed lawn area."
         )
 
+        # ------------------------------------------
+        # GRASS COVERAGE
+        # ------------------------------------------
 
-        # =================================================
-        # OFFICIAL GRASS CITIZEN REGISTRY
-        # =================================================
+        st.metric(
+            "🌿 Detected Grass Coverage",
+            f"{grass_percentage:.1f}%"
+        )
+
+        # ------------------------------------------
+        # VERIFICATION MAP
+        # ------------------------------------------
+
+        st.subheader(
+            "🔬 Census Verification Map"
+        )
+
+        st.write(
+            "Green highlighting indicates the areas "
+            "identified as grass by the computer vision system."
+        )
+
+        st.image(
+            verification_image_rgb,
+            caption="Detected Grass Regions",
+            use_container_width=True
+        )
+
+        # ------------------------------------------
+        # CITIZEN REGISTRY
+        # ------------------------------------------
 
         st.divider()
 
@@ -296,43 +422,58 @@ verification_image_rgb = cv2.cvtColor(
             "registered by the Ministry:"
         )
 
-        # Create registry
-        registry = []
+        grass_citizens = []
 
-        for citizen_id in grass_citizens:
+        for i in range(count):
 
-            registry.append({
-                "Citizen ID": citizen_id,
-                "Status": "ACTIVE",
-                "Department": "Grass Affairs"
-            })
+            citizen_id = (
+                f"GRASS-{i + 1:04d}"
+            )
 
+            grass_citizens.append(
+                citizen_id
+            )
 
-        # =================================================
+        # ------------------------------------------
         # REGISTRY TABLE
-        # =================================================
+        # ------------------------------------------
 
-        table = "| Citizen ID | Status | Department |\n"
-        table += "|---|---|---|\n"
+        table = (
+            "| Citizen ID | Status | Department |\n"
+        )
 
-        for citizen in registry:
+        table += (
+            "|---|---|---|\n"
+        )
+
+        # Show first 100 citizens only.
+
+        for citizen_id in grass_citizens[:100]:
 
             table += (
-                f"| {citizen['Citizen ID']} "
-                f"| {citizen['Status']} "
-                f"| {citizen['Department']} |\n"
+                f"| {citizen_id} "
+                f"| ACTIVE "
+                f"| Grass Affairs |\n"
             )
 
         st.markdown(table)
 
+        if count > 100:
 
-        # =================================================
-        # MINISTRY RESTRICTIONS
-        # =================================================
+            st.caption(
+                f"Showing first 100 citizens out of "
+                f"{count:,} registered citizens."
+            )
+
+        # ------------------------------------------
+        # SEARCH FACILITY
+        # ------------------------------------------
 
         st.divider()
 
-        st.header("🔎 Grass Citizen Search")
+        st.header(
+            "🔎 Grass Citizen Search"
+        )
 
         st.warning(
             "🔒 SEARCH FACILITY CURRENTLY RESTRICTED"
@@ -354,10 +495,9 @@ verification_image_rgb = cv2.cvtColor(
             "unnecessary administrative verification."
         )
 
-
-# =========================================================
+# --------------------------------------------------
 # FOOTER
-# =========================================================
+# --------------------------------------------------
 
 st.divider()
 
