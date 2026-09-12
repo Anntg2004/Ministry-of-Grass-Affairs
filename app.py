@@ -223,6 +223,25 @@ if uploaded_file:
 
         # Estimated grass population
         count = len(grass_regions)
+        # =================================================
+# CREATE CENSUS VERIFICATION IMAGE
+# =================================================
+
+verification_image = image.copy()
+
+for contour in grass_regions:
+    cv2.drawContours(
+        verification_image,
+        [contour],
+        -1,
+        (0, 255, 0),
+        2
+    )
+
+verification_image_rgb = cv2.cvtColor(
+    verification_image,
+    cv2.COLOR_BGR2RGB
+)
 
 
         # =================================================
