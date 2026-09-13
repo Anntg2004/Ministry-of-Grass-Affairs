@@ -45,7 +45,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------------------
-# PAGE DESIGN
+# PAGE DESIGN & CSS OVERRIDES
 # ------------------------------------------------------------
 
 st.markdown("""
@@ -155,6 +155,38 @@ label, .stTextInput label, .stSelectbox label, .stFileUploader label {
     color: white;
 }
 
+/* FILE UPLOADER THEME OVERRIDE: WHITE BUTTON WITH BLACK WRITING */
+div[data-testid="stFileUploader"] section {
+    background-color: #ffffff !important;
+    border: 1px dashed #8db596 !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stFileUploader"] section div, 
+div[data-testid="stFileUploader"] section span,
+div[data-testid="stFileUploader"] section small {
+    color: #000000 !important;
+}
+
+div[data-testid="stFileUploader"] button {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stFileUploader"] button * {
+    color: #000000 !important;
+    fill: #000000 !important;
+}
+
+div[data-testid="stFileUploader"] button:hover {
+    background-color: #f0f0f0 !important;
+    color: #000000 !important;
+    border-color: #000000 !important;
+}
+
 .certificate-box {
     border: 5px double #1d5c2a;
     padding: 30px;
@@ -225,7 +257,7 @@ st.markdown(
 
 
 # ------------------------------------------------------------
-# GRASS DETECTION
+# GRASS DETECTION & ANALYSIS
 # ------------------------------------------------------------
 
 def detect_grass_mask(input_image):
@@ -291,479 +323,512 @@ def create_citizens(lawn_id, population, registered_on):
 
 
 # ------------------------------------------------------------
-# NATIONAL GRASS CENSUS
+# SIDEBAR NAVIGATION & LAWN SELECTION
 # ------------------------------------------------------------
 
-st.markdown('<div class="section-title">🌱 National Grass Census</div>', unsafe_allow_html=True)
+st.sidebar.title("🏛️ Navigation Menu")
+page = st.sidebar.radio(
+    "Select Portal Service:",
+    [
+        "🌱 Grass Census & Registration",
+        "🏡 Lawn Administration",
+        "📋 Citizen Registry",
+        "📜 Certificates & Registry Access",
+        "📅 Secondary Census & Change Map"
+    ]
+)
 
 if lawns:
     lawn_options = list(lawns.keys())
-    selected_lawn_id = st.selectbox("Select Registered Lawn", lawn_options)
+    selected_lawn_id = st.sidebar.selectbox("Select Active Lawn Workspace", lawn_options)
     current_lawn = lawns[selected_lawn_id]
 else:
     selected_lawn_id = None
     current_lawn = None
 
-st.markdown("---")
-st.subheader("🏡 Register a New Lawn")
 
-lawn_name = st.text_input(
-    "Enter Lawn Name",
-    placeholder="Example: College Garden"
-)
+# ------------------------------------------------------------
+# PAGE 1: GRASS CENSUS & REGISTRATION
+# ------------------------------------------------------------
 
-uploaded_day1 = st.file_uploader(
-    "Upload Day-1 Lawn Photograph",
-    type=["jpg", "jpeg", "png"],
-    key="day1"
-)
+if page == "🌱 Grass Census & Registration":
+    st.markdown('<div class="section-title">🌱 Initial Grass Census & Registration</div>', unsafe_allow_html=True)
+    st.write("Register a new lawn to issue census tracking numbers and initiate citizen records.")
+    
+    st.markdown("---")
+    lawn_name = st.text_input("Enter Lawn Name", placeholder="Example: Central Campus Oval")
 
-if st.button("🌱 Conduct Initial Grass Census"):
-    if not lawn_name:
-        st.warning("Please enter a lawn name.")
-    elif uploaded_day1 is None:
-        st.warning("Please upload a Day-1 lawn photograph.")
-    else:
-        image, mask, coverage, population = analyze_grass(uploaded_day1.getvalue())
+    uploaded_day1 = st.file_uploader(
+        "Upload Baseline Lawn Image (Day 1)",
+        type=["jpg", "jpeg", "png"],
+        key="day1_reg"
+    )
 
-        if image is None:
-            st.error("Unable to process the image.")
+    if st.button("🌱 Conduct Initial Grass Census"):
+        if not lawn_name:
+            st.warning("Please enter a valid lawn name.")
+        elif uploaded_day1 is None:
+            st.warning("Please upload a baseline image of the lawn.")
         else:
-            lawn_id = create_lawn_id()
-            registered_on = datetime.now().strftime("%Y-%m-%d")
-            baseline_path = os.path.join(DATA_FOLDER, f"{lawn_id}_baseline.jpg")
+            image, mask, coverage, population = analyze_grass(uploaded_day1.getvalue())
 
-            cv2.imwrite(baseline_path, image)
+            if image is None:
+                st.error("Unable to process the image.")
+            else:
+                lawn_id = create_lawn_id()
+                registered_on = datetime.now().strftime("%Y-%m-%d")
+                baseline_path = os.path.join(DATA_FOLDER, f"{lawn_id}_baseline.jpg")
 
-            citizens = create_citizens(
-                lawn_id,
-                population,
-                registered_on
-            )
+                cv2.imwrite(baseline_path, image)
 
-            lawns[lawn_id] = {
-                "name": lawn_name,
-                "registered_on": registered_on,
-                "population": population,
-                "coverage": coverage,
-                "baseline_image": baseline_path,
-                "citizens": citizens
-            }
-
-            save_lawns(lawns)
-
-            st.success(f"✅ Lawn successfully registered as {lawn_id}")
-            st.info(f"🌱 Estimated Grass Citizen Population: {population:,}")
-            st.info(f"🌿 Grass Coverage: {coverage:.2f}%")
-
-            if citizens:
-                demo = citizens[0]
-                st.info(
-                    "🎫 DEMO CITIZEN ACCESS\n\n"
-                    f"Citizen ID: {demo['citizen_id']}\n\n"
-                    f"Verification Code: {demo['verification_code']}"
+                citizens = create_citizens(
+                    lawn_id,
+                    population,
+                    registered_on
                 )
 
+                lawns[lawn_id] = {
+                    "name": lawn_name,
+                    "registered_on": registered_on,
+                    "population": population,
+                    "coverage": coverage,
+                    "baseline_image": baseline_path,
+                    "citizens": citizens
+                }
+
+                save_lawns(lawns)
+
+                st.success(f"✅ Lawn successfully registered as {lawn_id}")
+                st.info(f"🌱 Estimated Grass Citizen Population: {population:,}")
+                st.info(f"🌿 Grass Coverage: {coverage:.2f}%")
+
+                if citizens:
+                    demo = citizens[0]
+                    st.info(
+                        "🎫 DEMO CITIZEN ACCESS CREDENTIALS\n\n"
+                        f"Citizen ID: {demo['citizen_id']}\n\n"
+                        f"Verification Code: {demo['verification_code']}"
+                    )
+
 
 # ------------------------------------------------------------
-# EXISTING LAWN INFORMATION
+# PAGE 2: LAWN ADMINISTRATION
 # ------------------------------------------------------------
 
-if current_lawn:
-    current_citizens = get_citizens(current_lawn)
+elif page == "🏡 Lawn Administration":
+    st.markdown('<div class="section-title">🏡 Lawn Administration & Metrics</div>', unsafe_allow_html=True)
+    
+    if not current_lawn:
+        st.info("No registered lawns found. Please register a lawn in the Grass Census tab first.")
+    else:
+        current_citizens = get_citizens(current_lawn)
 
-    st.markdown("---")
-    st.subheader(
-        f"📋 Lawn Administration: {current_lawn.get('name', 'Registered Lawn')}"
-    )
+        st.subheader(f"Lawn Administrative Record: {current_lawn.get('name', 'Registered Lawn')}")
+        st.write(f"Workspace Identifier: **{selected_lawn_id}**")
+        st.write(f"Registration Date: **{current_lawn.get('registered_on', 'N/A')}**")
 
-    col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-    with col1:
-        st.metric("Grass Population", f"{current_lawn.get('population', 0):,}")
+        with col1:
+            st.metric("Grass Population", f"{current_lawn.get('population', 0):,}")
 
-    with col2:
-        st.metric("Grass Coverage", f"{current_lawn.get('coverage', 0):.2f}%")
+        with col2:
+            st.metric("Grass Coverage", f"{current_lawn.get('coverage', 0):.2f}%")
 
-    with col3:
-        st.metric("Citizen Records", len(current_citizens))
+        with col3:
+            st.metric("Citizen Records Issued", len(current_citizens))
+
+        st.markdown("---")
+        st.subheader("🖼️ Baseline Reference Image")
+        baseline_path = current_lawn.get("baseline_image")
+        if baseline_path and os.path.exists(baseline_path):
+            st.image(baseline_path, caption=f"Baseline Photo for {selected_lawn_id}", use_container_width=True)
+        else:
+            st.warning("Baseline image record is unavailable.")
 
 
 # ------------------------------------------------------------
-# CITIZEN REGISTRY
+# PAGE 3: CITIZEN REGISTRY
 # ------------------------------------------------------------
 
-if current_lawn:
-    st.markdown("---")
-    st.subheader("📋 National Grass Citizen Registry")
+elif page == "📋 Citizen Registry":
+    st.markdown('<div class="section-title">📋 National Grass Citizen Registry</div>', unsafe_allow_html=True)
 
-    registry_citizens = get_citizens(current_lawn)
+    if not current_lawn:
+        st.info("No registered lawns found. Please register a lawn to view citizen records.")
+    else:
+        registry_citizens = get_citizens(current_lawn)
 
-    st.write(
-        f"Official registry for **{current_lawn.get('name', 'Registered Lawn')}** "
-        f"({selected_lawn_id})."
-    )
+        st.write(
+            f"Displaying official registration records for **{current_lawn.get('name', 'Registered Lawn')}** "
+            f"(`{selected_lawn_id}`)."
+        )
 
-    if registry_citizens:
-        registry_rows = []
+        if registry_citizens:
+            registry_rows = []
 
-        for citizen in registry_citizens[:100]:
-            if isinstance(citizen, dict):
-                registry_rows.append([
-                    citizen.get("citizen_id", "N/A"),
-                    citizen.get("name", "Bladie McGreen"),
-                    citizen.get("status", "ACTIVE"),
-                    citizen.get("classification", "Grass Citizen")
+            for citizen in registry_citizens[:100]:
+                if isinstance(citizen, dict):
+                    registry_rows.append([
+                        citizen.get("citizen_id", "N/A"),
+                        citizen.get("name", "Bladie McGreen"),
+                        citizen.get("status", "ACTIVE"),
+                        citizen.get("classification", "Grass Citizen")
+                    ])
+
+            if registry_rows:
+                st.table(
+                    {
+                        "Citizen ID": [row[0] for row in registry_rows],
+                        "Citizen Name": [row[1] for row in registry_rows],
+                        "Status": [row[2] for row in registry_rows],
+                        "Classification": [row[3] for row in registry_rows]
+                    }
+                )
+
+                if len(registry_citizens) > 100:
+                    st.caption(
+                        f"Displaying first 100 of {len(registry_citizens):,} total registered citizens."
+                    )
+        else:
+            st.info("No registered grass citizens found for this specific lawn.")
+
+
+# ------------------------------------------------------------
+# PAGE 4: CERTIFICATES & REGISTRY ACCESS
+# ------------------------------------------------------------
+
+elif page == "📜 Certificates & Registry Access":
+    st.markdown('<div class="section-title">📜 Citizen Certificate Portal</div>', unsafe_allow_html=True)
+
+    if not current_lawn:
+        st.info("No registered lawns available.")
+    else:
+        st.write("Enter valid credentials to access civil registration records and birth certificates.")
+
+        citizen_id_input = st.text_input(
+            "Enter Grass Citizen ID",
+            placeholder="LAWN-001-GRASS-0001"
+        )
+
+        verification_input = st.text_input(
+            "Enter Verification Code",
+            type="password"
+        )
+
+        if st.button("🔐 Access Citizen Record"):
+            found_citizen = None
+
+            for citizen in get_citizens(current_lawn):
+                if not isinstance(citizen, dict):
+                    continue
+
+                if citizen.get("citizen_id") == citizen_id_input.strip():
+                    if citizen.get("verification_code") == verification_input.strip():
+                        found_citizen = citizen
+                    break
+
+            if found_citizen is None:
+                st.error("❌ Citizen record not found or security code mismatch.")
+            else:
+                st.success("✅ Identity access granted.")
+
+                st.markdown("---")
+
+                certificate_number = (
+                    f"MGA/{selected_lawn_id}/"
+                    f"{citizen_id_input.strip().split('-')[-1]}/"
+                    f"{found_citizen.get('registered_on', '0000-00-00')}"
+                )
+
+                st.markdown('<div class="certificate-box">', unsafe_allow_html=True)
+
+                seal_col1, seal_col2, seal_col3 = st.columns([1, 2, 1])
+
+                with seal_col1:
+                    st.markdown(
+                        """
+                        <div class="official-seal">
+                        🏛️<br>MGA<br>🌱<br>OFFICIAL
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                with seal_col2:
+                    st.markdown(
+                        '<div class="certificate-title">MINISTRY OF GRASS AFFAIRS</div>',
+                        unsafe_allow_html=True
+                    )
+                    st.markdown(
+                        '<div class="certificate-subtitle">Department of National Grass Administration<br>Grass Citizen Registration Authority</div>',
+                        unsafe_allow_html=True
+                    )
+
+                with seal_col3:
+                    st.markdown(
+                        """
+                        <div class="official-seal">
+                        🌿<br>2026<br>🌱<br>VERIFIED
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                st.markdown("---")
+
+                st.markdown(
+                    '<div class="certificate-title">🌿 CERTIFICATE OF BIRTH 🌿</div>',
+                    unsafe_allow_html=True
+                )
+                st.markdown(
+                    '<div class="certificate-subtitle">Official Government Document</div>',
+                    unsafe_allow_html=True
+                )
+
+                st.markdown("---")
+
+                reg_col1, reg_col2 = st.columns(2)
+
+                with reg_col1:
+                    st.write(
+                        f"**Certificate Registration No.**\n\n`{certificate_number}`"
+                    )
+
+                with reg_col2:
+                    st.write(
+                        f"**Citizen Registration No.**\n\n`{citizen_id_input.strip()}`"
+                    )
+
+                st.markdown("---")
+                st.markdown("### 🌱 PARTICULARS OF THE CITIZEN")
+
+                certificate_rows = [
+                    ["1", "Name of Citizen", "Bladie McGreen"],
+                    ["2", "Date of Birth", found_citizen.get("registered_on", "Record Not Available")],
+                    ["3", "Place of Birth", f"{selected_lawn_id}, Green Zone"],
+                    ["4", "Sex", "Grass 🌱"],
+                    ["5", "Citizenship", "Republic of Lawn"],
+                    ["6", "Permanent Address", f"{current_lawn.get('name', 'Registered Lawn')}, Sector 001, Green Zone"],
+                    ["7", "Occupation", "Professional Lawn Decoration"],
+                    ["8", "Citizen Status", found_citizen.get("status", "ACTIVE")],
+                    ["9", "Classification", "Grass Citizen"],
+                    ["10", "Jurisdiction", selected_lawn_id]
+                ]
+
+                st.table(certificate_rows)
+
+                st.markdown("---")
+                st.markdown("### 🌿 PARTICULARS OF PARENTAGE")
+
+                st.table([
+                    ["Mother", "Mother Grass 🌿"],
+                    ["Father", "Father Grass 🌱"],
+                    ["Family Name", "The Green Family"],
+                    ["Family Status", "Rooted & Growing"]
                 ])
 
-        if registry_rows:
-            st.table(
-                {
-                    "Citizen ID": [row[0] for row in registry_rows],
-                    "Citizen Name": [row[1] for row in registry_rows],
-                    "Status": [row[2] for row in registry_rows],
-                    "Classification": [row[3] for row in registry_rows]
-                }
-            )
+                st.markdown("---")
+                st.markdown("### 🏛️ OFFICIAL GOVERNMENT CLASSIFICATION")
 
-            if len(registry_citizens) > 100:
+                class_col1, class_col2 = st.columns(2)
+
+                with class_col1:
+                    st.info(
+                        "**Species**\n\n*Grassus Extremely Greenus*\n\n"
+                        "**Occupation**\n\nLawn Decoration\n\n"
+                        "**Annual Income**\n\n₹0.00"
+                    )
+
+                with class_col2:
+                    st.info(
+                        "**Threat Level**\n\nExtremely Harmless\n\n"
+                        "**International Travel**\n\nNot permitted — roots attached\n\n"
+                        "**Government Importance**\n\nSurprisingly High"
+                    )
+
+                st.markdown("---")
+                st.markdown("### 📝 DECLARATION BY THE CITIZEN")
+
+                st.write(
+                    "I hereby declare that I am a legitimate resident of the above-mentioned lawn. "
+                    "I promise to photosynthesize responsibly, remain reasonably green, and contribute "
+                    "positively to the national grass population. I further request that the authorities "
+                    "protect me from unnecessary mowing."
+                )
+
+                st.markdown(
+                    '> **“I may just be grass, but I have government documents now.” 🌱**'
+                )
+
+                st.markdown("---")
+                st.markdown("### 🏆 OFFICIAL GOVERNMENT RECOGNITION")
+
+                award_col1, award_col2, award_col3 = st.columns(3)
+
+                with award_col1:
+                    st.success("🏆 **BEST LOOKING BLADE**\n\nExceptional greenness")
+
+                with award_col2:
+                    st.success("🌿 **OUTSTANDING GREENNESS**\n\nValuable lawn contribution")
+
+                with award_col3:
+                    st.success("☀️ **PHOTOSYNTHESIS EXCELLENCE**\n\nOutstanding solar absorption")
+
+                st.markdown("---")
+
+                st.warning(
+                    "⚠️ **OFFICIAL GOVERNMENT NOTICE**\n\n"
+                    "This citizen has been officially registered by the Ministry of Grass Affairs.\n\n"
+                    "Unauthorized mowing, trimming, uprooting, or suspicious lawn activity may be subject "
+                    "to administrative review.\n\n**MOWING IS NOW A GOVERNMENT MATTER.**"
+                )
+
+                st.markdown("---")
+
+                signature_col1, signature_col2 = st.columns(2)
+
+                with signature_col1:
+                    st.markdown(
+                        "### 🏛️ OFFICIAL SEAL\n\n"
+                        "**MINISTRY OF GRASS AFFAIRS**\n\n"
+                        "**NATIONAL GRASS ADMINISTRATION**\n\n🌱"
+                    )
+
+                with signature_col2:
+                    st.write("")
+                    st.write("")
+                    st.markdown("**____________________________**")
+                    st.markdown("**The Grass Administrator**")
+                    st.caption("Authorized Government Officer")
+
+                st.markdown("---")
                 st.caption(
-                    f"Showing first 100 of {len(registry_citizens):,} registered citizens."
+                    "Issued under the authority of the Department of National Grass Administration."
                 )
+                st.success("🌿 EVERY BLADE COUNTS. EVERY CITIZEN MATTERS.")
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ------------------------------------------------------------
+# PAGE 5: SECONDARY CENSUS & CHANGE MAP
+# ------------------------------------------------------------
+
+elif page == "📅 Secondary Census & Change Map":
+    st.markdown('<div class="section-title">📅 Secondary Grass Census & Analysis</div>', unsafe_allow_html=True)
+
+    if not current_lawn:
+        st.info("No registered lawn found. Please create a lawn workspace first.")
     else:
-        st.info("No grass citizens are currently registered for this lawn.")
+        st.write(
+            f"Comparing post-registration coverage for **{current_lawn.get('name')}** (`{selected_lawn_id}`)."
+        )
 
+        uploaded_day2 = st.file_uploader(
+            "Upload Day-2 Lawn Photograph",
+            type=["jpg", "jpeg", "png"],
+            key="day2_census"
+        )
 
-# ------------------------------------------------------------
-# CITIZEN SEARCH
-# ------------------------------------------------------------
-
-if current_lawn:
-    st.markdown("---")
-    st.subheader("🔎 Grass Citizen Search")
-
-    citizen_id_input = st.text_input(
-        "Enter Grass Citizen ID",
-        placeholder="LAWN-001-GRASS-0001"
-    )
-
-    verification_input = st.text_input(
-        "Enter Private Verification Code",
-        type="password"
-    )
-
-    if st.button("🔐 Access Citizen Record"):
-        found_citizen = None
-
-        for citizen in get_citizens(current_lawn):
-            if not isinstance(citizen, dict):
-                continue
-
-            if citizen.get("citizen_id") == citizen_id_input.strip():
-                if citizen.get("verification_code") == verification_input.strip():
-                    found_citizen = citizen
-                break
-
-        if found_citizen is None:
-            st.error("❌ Citizen record not found or verification code is incorrect.")
-        else:
-            st.success("✅ Citizen identity verified.")
-
-            st.markdown("---")
-
-            certificate_number = (
-                f"MGA/{selected_lawn_id}/"
-                f"{citizen_id_input.strip().split('-')[-1]}/"
-                f"{found_citizen.get('registered_on', '0000-00-00')}"
-            )
-
-            st.markdown('<div class="certificate-box">', unsafe_allow_html=True)
-
-            seal_col1, seal_col2, seal_col3 = st.columns([1, 2, 1])
-
-            with seal_col1:
-                st.markdown(
-                    """
-                    <div class="official-seal">
-                    🏛️<br>MGA<br>🌱<br>OFFICIAL
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-            with seal_col2:
-                st.markdown(
-                    '<div class="certificate-title">MINISTRY OF GRASS AFFAIRS</div>',
-                    unsafe_allow_html=True
-                )
-                st.markdown(
-                    '<div class="certificate-subtitle">Department of National Grass Administration<br>Grass Citizen Registration Authority</div>',
-                    unsafe_allow_html=True
-                )
-
-            with seal_col3:
-                st.markdown(
-                    """
-                    <div class="official-seal">
-                    🌿<br>2026<br>🌱<br>VERIFIED
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-            st.markdown("---")
-
-            st.markdown(
-                '<div class="certificate-title">🌿 CERTIFICATE OF BIRTH 🌿</div>',
-                unsafe_allow_html=True
-            )
-            st.markdown(
-                '<div class="certificate-subtitle">Official Government Document</div>',
-                unsafe_allow_html=True
-            )
-
-            st.markdown("---")
-
-            reg_col1, reg_col2 = st.columns(2)
-
-            with reg_col1:
-                st.write(
-                    f"**Certificate Registration No.**\n\n`{certificate_number}`"
-                )
-
-            with reg_col2:
-                st.write(
-                    f"**Citizen Registration No.**\n\n`{citizen_id_input.strip()}`"
-                )
-
-            st.markdown("---")
-            st.markdown("### 🌱 PARTICULARS OF THE CITIZEN")
-
-            certificate_rows = [
-                ["1", "Name of Citizen", "Bladie McGreen"],
-                ["2", "Date of Birth", found_citizen.get("registered_on", "Record Not Available")],
-                ["3", "Place of Birth", f"{selected_lawn_id}, Green Zone"],
-                ["4", "Sex", "Grass 🌱"],
-                ["5", "Citizenship", "Republic of Lawn"],
-                ["6", "Permanent Address", f"{current_lawn.get('name', 'Registered Lawn')}, Sector 001, Green Zone"],
-                ["7", "Occupation", "Professional Lawn Decoration"],
-                ["8", "Citizen Status", found_citizen.get("status", "ACTIVE")],
-                ["9", "Classification", "Grass Citizen"],
-                ["10", "Jurisdiction", selected_lawn_id]
-            ]
-
-            st.table(certificate_rows)
-
-            st.markdown("---")
-            st.markdown("### 🌿 PARTICULARS OF PARENTAGE")
-
-            st.table([
-                ["Mother", "Mother Grass 🌿"],
-                ["Father", "Father Grass 🌱"],
-                ["Family Name", "The Green Family"],
-                ["Family Status", "Rooted & Growing"]
-            ])
-
-            st.markdown("---")
-            st.markdown("### 🏛️ OFFICIAL GOVERNMENT CLASSIFICATION")
-
-            class_col1, class_col2 = st.columns(2)
-
-            with class_col1:
-                st.info(
-                    "**Species**\n\n*Grassus Extremely Greenus*\n\n"
-                    "**Occupation**\n\nLawn Decoration\n\n"
-                    "**Annual Income**\n\n₹0.00"
-                )
-
-            with class_col2:
-                st.info(
-                    "**Threat Level**\n\nExtremely Harmless\n\n"
-                    "**International Travel**\n\nNot permitted — roots attached\n\n"
-                    "**Government Importance**\n\nSurprisingly High"
-                )
-
-            st.markdown("---")
-            st.markdown("### 📝 DECLARATION BY THE CITIZEN")
-
-            st.write(
-                "I hereby declare that I am a legitimate resident of the above-mentioned lawn. "
-                "I promise to photosynthesize responsibly, remain reasonably green, and contribute "
-                "positively to the national grass population. I further request that the authorities "
-                "protect me from unnecessary mowing."
-            )
-
-            st.markdown(
-                '> **“I may just be grass, but I have government documents now.” 🌱**'
-            )
-
-            st.markdown("---")
-            st.markdown("### 🏆 OFFICIAL GOVERNMENT RECOGNITION")
-
-            award_col1, award_col2, award_col3 = st.columns(3)
-
-            with award_col1:
-                st.success("🏆 **BEST LOOKING BLADE**\n\nExceptional greenness")
-
-            with award_col2:
-                st.success("🌿 **OUTSTANDING GREENNESS**\n\nValuable lawn contribution")
-
-            with award_col3:
-                st.success("☀️ **PHOTOSYNTHESIS EXCELLENCE**\n\nOutstanding solar absorption")
-
-            st.markdown("---")
-
-            st.warning(
-                "⚠️ **OFFICIAL GOVERNMENT NOTICE**\n\n"
-                "This citizen has been officially registered by the Ministry of Grass Affairs.\n\n"
-                "Unauthorized mowing, trimming, uprooting, or suspicious lawn activity may be subject "
-                "to administrative review.\n\n**MOWING IS NOW A GOVERNMENT MATTER.**"
-            )
-
-            st.markdown("---")
-
-            signature_col1, signature_col2 = st.columns(2)
-
-            with signature_col1:
-                st.markdown(
-                    "### 🏛️ OFFICIAL SEAL\n\n"
-                    "**MINISTRY OF GRASS AFFAIRS**\n\n"
-                    "**NATIONAL GRASS ADMINISTRATION**\n\n🌱"
-                )
-
-            with signature_col2:
-                st.write("")
-                st.write("")
-                st.markdown("**____________________________**")
-                st.markdown("**The Grass Administrator**")
-                st.caption("Authorized Government Officer")
-
-            st.markdown("---")
-            st.caption(
-                "Issued under the authority of the Department of National Grass Administration."
-            )
-            st.success("🌿 EVERY BLADE COUNTS. EVERY CITIZEN MATTERS.")
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ------------------------------------------------------------
-# DAY-2 GRASS CENSUS
-# ------------------------------------------------------------
-
-if current_lawn:
-    st.markdown("---")
-    st.subheader("📅 Day-2 Grass Census")
-
-    st.write(
-        "Upload another photograph of the same lawn to compare it with the Day-1 baseline."
-    )
-
-    uploaded_day2 = st.file_uploader(
-        "Upload Day-2 Lawn Photograph",
-        type=["jpg", "jpeg", "png"],
-        key="day2"
-    )
-
-    if st.button("🔍 Conduct Day-2 Census"):
-        if uploaded_day2 is None:
-            st.warning("Please upload a Day-2 photograph.")
-        else:
-            baseline_path = current_lawn.get("baseline_image")
-
-            if not baseline_path or not os.path.exists(baseline_path):
-                st.error("Baseline image was not found for this lawn.")
+        if st.button("🔍 Conduct Secondary Census Analysis"):
+            if uploaded_day2 is None:
+                st.warning("Please upload a secondary lawn photo to perform comparison.")
             else:
-                day2_image, day2_mask, day2_coverage, day2_population = analyze_grass(
-                    uploaded_day2.getvalue()
-                )
+                baseline_path = current_lawn.get("baseline_image")
 
-                baseline_image = cv2.imread(baseline_path)
-
-                if baseline_image is None or day2_image is None:
-                    st.error("Unable to read or process the images.")
+                if not baseline_path or not os.path.exists(baseline_path):
+                    st.error("Baseline snapshot not found for this workspace.")
                 else:
-                    # Resize Day 2 image and mask to match Baseline dimensions
-                    height, width = baseline_image.shape[:2]
-                    day2_image = cv2.resize(day2_image, (width, height))
-                    day2_mask = cv2.resize(day2_mask, (width, height))
-
-                    baseline_mask = detect_grass_mask(baseline_image)
-                    baseline_population = current_lawn.get("population", 0)
-
-                    if baseline_population <= 0:
-                        baseline_population = 1
-
-                    raw_missing_rate = (
-                        (baseline_population - day2_population)
-                        / baseline_population
-                    ) * 100
-
-                    raw_new_rate = (
-                        (day2_population - baseline_population)
-                        / baseline_population
-                    ) * 100
-
-                    missing_rate = max(0, min(3, raw_missing_rate))
-                    new_rate = max(0, min(3, raw_new_rate))
-
-                    displayed_day2_population = int(
-                        baseline_population
-                        * (1 - missing_rate / 100 + new_rate / 100)
+                    day2_image, day2_mask, day2_coverage, day2_population = analyze_grass(
+                        uploaded_day2.getvalue()
                     )
 
-                    col1, col2, col3 = st.columns(3)
+                    baseline_image = cv2.imread(baseline_path)
 
-                    with col1:
-                        st.metric("Day-1 Population", f"{baseline_population:,}")
-
-                    with col2:
-                        st.metric("Day-2 Population", f"{displayed_day2_population:,}")
-
-                    with col3:
-                        st.metric("Missing Grass Rate", f"{missing_rate:.2f}%")
-
-                    st.subheader("🗺️ Grass Citizen Change Detection Map")
-
-                    baseline_bool = baseline_mask > 0
-                    day2_bool = day2_mask > 0
-
-                    missing_mask = baseline_bool & ~day2_bool
-                    new_mask = day2_bool & ~baseline_bool
-
-                    change_map = np.zeros(
-                        (baseline_mask.shape[0], baseline_mask.shape[1], 3),
-                        dtype=np.uint8
-                    )
-
-                    change_map[missing_mask] = [0, 0, 255]
-                    change_map[new_mask] = [255, 0, 0]
-
-                    change_map_rgb = cv2.cvtColor(
-                        change_map,
-                        cv2.COLOR_BGR2RGB
-                    )
-
-                    st.image(
-                        change_map_rgb,
-                        caption="🔴 Red = potentially missing grass regions | 🔵 Blue = newly detected grass regions",
-                        use_container_width=True
-                    )
-
-                    if missing_rate > 0:
-                        st.error(
-                            f"🚨 **GRASS CITIZEN ALERT**\n\n"
-                            f"Approximately **{missing_rate:.2f}%** of the registered grass population "
-                            "appears to be unaccounted for.\n\n"
-                            "The Ministry has classified the case as a **PROVISIONAL MISSING GRASS INCIDENT**.\n\n"
-                            "🔎 Investigation status: **ONGOING**"
-                        )
+                    if baseline_image is None or day2_image is None:
+                        st.error("Error reading image data.")
                     else:
-                        st.success(
-                            "✅ **NATIONAL GRASS POPULATION STABLE**\n\n"
-                            "No significant grass population change was detected between Day-1 and Day-2.\n\n"
-                            "All citizens appear to be present and photosynthesizing normally. 🌱"
+                        height, width = baseline_image.shape[:2]
+                        day2_image = cv2.resize(day2_image, (width, height))
+                        day2_mask = cv2.resize(day2_mask, (width, height))
+
+                        baseline_mask = detect_grass_mask(baseline_image)
+                        baseline_population = current_lawn.get("population", 0)
+
+                        if baseline_population <= 0:
+                            baseline_population = 1
+
+                        raw_missing_rate = (
+                            (baseline_population - day2_population)
+                            / baseline_population
+                        ) * 100
+
+                        raw_new_rate = (
+                            (day2_population - baseline_population)
+                            / baseline_population
+                        ) * 100
+
+                        missing_rate = max(0, min(3, raw_missing_rate))
+                        new_rate = max(0, min(3, raw_new_rate))
+
+                        displayed_day2_population = int(
+                            baseline_population
+                            * (1 - missing_rate / 100 + new_rate / 100)
                         )
+
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            st.metric("Day-1 Baseline Population", f"{baseline_population:,}")
+
+                        with col2:
+                            st.metric("Day-2 Recount Population", f"{displayed_day2_population:,}")
+
+                        with col3:
+                            st.metric("Variance Rate", f"{missing_rate:.2f}%")
+
+                        st.subheader("🗺️ Grass Citizen Change Detection Map")
+
+                        baseline_bool = baseline_mask > 0
+                        day2_bool = day2_mask > 0
+
+                        missing_mask = baseline_bool & ~day2_bool
+                        new_mask = day2_bool & ~baseline_bool
+
+                        change_map = np.zeros(
+                            (baseline_mask.shape[0], baseline_mask.shape[1], 3),
+                            dtype=np.uint8
+                        )
+
+                        change_map[missing_mask] = [0, 0, 255]
+                        change_map[new_mask] = [255, 0, 0]
+
+                        change_map_rgb = cv2.cvtColor(
+                            change_map,
+                            cv2.COLOR_BGR2RGB
+                        )
+
+                        st.image(
+                            change_map_rgb,
+                            caption="🔴 Red = potentially missing grass regions | 🔵 Blue = newly detected grass regions",
+                            use_container_width=True
+                        )
+
+                        if missing_rate > 0:
+                            st.error(
+                                f"🚨 **GRASS CITIZEN ALERT**\n\n"
+                                f"Approximately **{missing_rate:.2f}%** of the registered grass population "
+                                "appears to be unaccounted for.\n\n"
+                                "The Ministry has classified the case as a **PROVISIONAL MISSING GRASS INCIDENT**.\n\n"
+                                "🔎 Investigation status: **ONGOING**"
+                            )
+                        else:
+                            st.success(
+                                "✅ **NATIONAL GRASS POPULATION STABLE**\n\n"
+                                "No significant grass population change was detected between Day-1 and Day-2.\n\n"
+                                "All citizens appear to be present and photosynthesizing normally. 🌱"
+                            )
 
 
 # ------------------------------------------------------------
